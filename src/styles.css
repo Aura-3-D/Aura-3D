@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #070b14;
+  --color-bg-elevated: #0d1522;
+  --color-bg-subtle: #152033;
+  --color-fg: #e8eef8;
+  --color-muted: #8fa3bd;
+  --color-subtle: #5d7390;
+  --color-border: rgb(186 214 255 / 0.14);
+  --color-border-strong: rgb(186 214 255 / 0.26);
+  --color-accent: #9ec4ea;
+  --color-accent-fg: #071018;
+  --color-lily: #c4a494;
+  --color-alex: #8aa0b3;
+  --color-anna: #c2b8a8;
+  --color-heart: #c45d72;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-medium: 350ms;
+  --motion-slow: 400ms;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .field {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    padding: 0.6rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-fg);
+    outline: none;
+  }
+  .field:focus-visible {
+    box-shadow: 0 0 0 2px rgb(232 238 248 / 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.aura-grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E");
+}
+
+.aura-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 40%, #070b14 100%);
+}
