@@ -294,7 +294,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "Today left: {text} texts · {voice} min voice · {image} images",
     needCoins: "Daily limit reached. Buy Aura-coin to continue.",
-    coinRates: "1 coin = 1 text. 2 coins = 1 min voice. 5 coins = 1 image.",
+    coinRates: "1 coin = 1 text. 4 coins = 1 min voice. 5 coins = 1 image.",
   },
   tr: {
     language: "Dil",
@@ -434,7 +434,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "Bugün kalan: {text} yazı · {voice} dk ses · {image} görsel",
     needCoins: "Günlük sınır doldu. Devam için Aura-coin al.",
-    coinRates: "1 coin = 1 yazı. 2 coin = 1 dk ses. 5 coin = 1 görsel.",
+    coinRates: "1 coin = 1 yazı. 4 coin = 1 dk ses. 5 coin = 1 görsel.",
   },
   ru: {
     language: "Язык",
@@ -574,7 +574,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "Сегодня: {text} текст · {voice} мин голоса · {image} картинок",
     needCoins: "Дневной лимит. Купи Aura-coin, чтобы продолжить.",
-    coinRates: "1 монета = 1 текст. 2 = 1 мин голоса. 5 = 1 картинка.",
+    coinRates: "1 монета = 1 текст. 4 = 1 мин голоса. 5 = 1 картинка.",
   },
   de: {
     language: "Sprache",
@@ -714,7 +714,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "Heute übrig: {text} Texte · {voice} Min Stimme · {image} Bilder",
     needCoins: "Tageslimit. Kauf Aura-coin, um weiterzumachen.",
-    coinRates: "1 Münze = 1 Text. 2 = 1 Min Stimme. 5 = 1 Bild.",
+    coinRates: "1 Münze = 1 Text. 4 = 1 Min Stimme. 5 = 1 Bild.",
   },
   ar: {
     language: "اللغة",
@@ -854,7 +854,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "متبقٍ اليوم: {text} نص · {voice} د صوت · {image} صور",
     needCoins: "انتهى الحد اليومي. اشترِ Aura-coin للمتابعة.",
-    coinRates: "1 عملة = نص واحد. 2 = دقيقة صوت. 5 = صورة.",
+    coinRates: "1 عملة = نص واحد. 4 = دقيقة صوت. 5 = صورة.",
   },
   es: {
     language: "Idioma",
@@ -994,7 +994,7 @@ export const COPY: Record<Locale, Copy> = {
     coins: "Aura-coin",
     dailyLeft: "Hoy quedan: {text} textos · {voice} min voz · {image} imágenes",
     needCoins: "Límite diario. Compra Aura-coin para seguir.",
-    coinRates: "1 moneda = 1 texto. 2 = 1 min de voz. 5 = 1 imagen.",
+    coinRates: "1 moneda = 1 texto. 4 = 1 min de voz. 5 = 1 imagen.",
   },
 };
 
