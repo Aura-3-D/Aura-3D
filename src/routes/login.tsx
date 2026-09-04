@@ -66,26 +66,26 @@ function Login() {
           {t(locale, "signInHint")}
         </p>
 
-        {authEnabled ? (
+                {authEnabled ? (
           <div className="mt-6 grid gap-2">
-            {GROK_PROVIDERS.filter((p) => p.idp === "google" || p.idp === "twitter").map(
-              (p) => (
-                <Button
-                  key={p.providerId}
-                  type="button"
-                  variant="glass"
-                  className="w-full"
-                  onClick={() => void signIn(p.providerId, { callbackURL: "/" })}
-                >
-                  {t(locale, "continueWith")} {p.label}
-                </Button>
-              ),
-            )}
+            <Button
+              type="button"
+              variant="glass"
+              className="w-full"
+              onClick={() =>
+                void authClient.signIn.social({
+                  provider: "google",
+                  callbackURL: "/",
+                })
+              }
+            >
+              {t(locale, "continueWith")} Google
+            </Button>
           </div>
         ) : (
           <p className="mt-6 text-sm text-muted">Sign-in is disabled.</p>
         )}
-
+        
         <div className="my-6 flex items-center gap-3 text-xs tracking-wide text-subtle">
           <span className="h-px flex-1 bg-border" />
           {t(locale, "email")}
