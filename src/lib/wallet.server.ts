@@ -3,11 +3,11 @@ import { getSql } from "@/lib/db";
 import { loadVip } from "@/lib/vip.server";
 import { isCoinPack, type WalletState } from "./wallet";
 
-export const BASE_TEXT_DAILY = 30;
-export const BASE_VOICE_MS_DAILY = 3 * 60_000;
+export const BASE_TEXT_DAILY = 60;
+export const BASE_VOICE_MS_DAILY = 2 * 60_000;
 export const BASE_IMAGE_DAILY = 3;
 export const COIN_PER_TEXT = 1;
-export const COIN_PER_VOICE_MIN = 2;
+export const COIN_PER_VOICE_MIN = 4;
 export const COIN_PER_IMAGE = 5;
 
 type WalletRow = {
