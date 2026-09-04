@@ -1,11 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import {
-  GROK_PROVIDERS,
-  authClient,
-  authEnabled,
-  signIn,
-} from "@/lib/auth/client";
+import { authClient, authEnabled } from "@/lib/auth/client";
 import { LanguageSelect } from "@/components/hud/LanguageSelect";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
@@ -66,7 +61,7 @@ function Login() {
           {t(locale, "signInHint")}
         </p>
 
-                {authEnabled ? (
+        {authEnabled ? (
           <div className="mt-6 grid gap-2">
             <Button
               type="button"
@@ -85,7 +80,7 @@ function Login() {
         ) : (
           <p className="mt-6 text-sm text-muted">Sign-in is disabled.</p>
         )}
-        
+
         <div className="my-6 flex items-center gap-3 text-xs tracking-wide text-subtle">
           <span className="h-px flex-1 bg-border" />
           {t(locale, "email")}
