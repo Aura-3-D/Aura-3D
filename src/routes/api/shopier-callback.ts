@@ -11,7 +11,6 @@ async function readOsbBody(request: Request): Promise<{
   if (ctype.includes("application/json")) {
     const json = (await request.json().catch(() => null)) as unknown;
     if (Array.isArray(json)) {
-      // OSB often sends [{ value: base64 }, { value: hash }]
       const res = String((json[0] as { value?: string })?.value ?? "");
       const hash = String((json[1] as { value?: string })?.value ?? "");
       return { res, hash, form };
@@ -21,8 +20,8 @@ async function readOsbBody(request: Request): Promise<{
         if (typeof v === "string" || typeof v === "number") form[k] = String(v);
       }
       return {
-        res: form.res || form[0],
-        hash: form.hash || form[1],
+        res: form.res || form["0"],
+        hash: form.hash || form["1"],
         form,
       };
     }
@@ -33,19 +32,10 @@ async function readOsbBody(request: Request): Promise<{
   for (const [k, v] of fd.entries()) {
     if (typeof v === "string") form[k] = v;
   }
-  // form-urlencoded array style: 0[value], 1[value]
   const res =
-    form.res ||
-    form["0"] ||
-    form["0[value]"] ||
-    form["[0][value]"] ||
-    "";
+    form.res || form["0"] || form["0[value]"] || form["[0][value]"] || "";
   const hash =
-    form.hash ||
-    form["1"] ||
-    form["1[value]"] ||
-    form["[1][value]"] ||
-    "";
+    form.hash || form["1"] || form["1[value]"] || form["[1][value]"] || "";
   return { res, hash, form };
 }
 
@@ -60,7 +50,7 @@ export const Route = createFileRoute("/api/shopier-callback")({
 
       POST: async ({ request }) => {
         try {
-          const { res, hash, form } = await readOsbBody(request);
+          const { res, hash } = await readOsbBody(request);
           const {
             verifyOsbHash,
             fulfillByProductAndEmail,
@@ -91,22 +81,20 @@ export const Route = createFileRoute("/api/shopier-callback")({
           }
 
           const email = String(payload.email ?? "").trim();
-          const productId = String(
+          let productId = String(
             payload.productid ?? payload.productId ?? "",
           ).trim();
           const orderId = String(
             payload.orderid ?? payload.orderId ?? "",
           ).trim();
 
-          // productlist can hold multiple ids — take first match
-          let resolvedProduct = productId;
-          if (!resolvedProduct && payload.productlist) {
+          if (!productId && payload.productlist) {
             const list = String(payload.productlist);
-            resolvedProduct = list.split(/[,;|\s]+/).filter(Boolean)[0] || "";
+            productId = list.split(/[,;|\s]+/).filter(Boolean)[0] || "";
           }
 
           const result = await fulfillByProductAndEmail({
-            productId: resolvedProduct,
+            productId,
             email,
             shopierOrderId: orderId || `osb-${Date.now()}`,
           });
@@ -114,16 +102,15 @@ export const Route = createFileRoute("/api/shopier-callback")({
           if (!result.ok) {
             console.error("[shopier] fulfill", result.error, {
               email,
-              productId: resolvedProduct,
+              productId,
               orderId,
             });
-            // Still return success so Shopier does not retry forever on unknown users
             return new Response("success", { status: 200 });
           }
 
           console.info("[shopier] OSB ok", {
             email,
-            productId: resolvedProduct,
+            productId,
             orderId,
             credited: result.credited,
           });

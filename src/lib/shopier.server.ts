@@ -41,7 +41,6 @@ export function shopierOsbPassword(): string | null {
   return envVar("SHOPIER_OSB_PASSWORD");
 }
 
-/** Live when we have product URLs (always) and ideally OSB for auto-credit. */
 export function shopierConfigured(): boolean {
   return Object.keys(SHOPIER_PRODUCT_URLS).length > 0;
 }
@@ -70,15 +69,7 @@ export async function startCoinCheckout(
   if (!pack) return { ok: false, error: "Unknown pack." };
 
   const productUrl = SHOPIER_PRODUCT_URLS[coins];
-  if (!productUrl) {
-    // No Shopier product mapped → trial credit
-    const bought = await buyPack(userId, coins);
-    if (!bought.ok) return bought;
-    return { ok: true, mode: "demo", wallet: bought.wallet };
-  }
-
-  // Force demo if SHOPIER_FORCE_DEMO=true
-  if (envVar("SHOPIER_FORCE_DEMO") === "true") {
+  if (!productUrl || envVar("SHOPIER_FORCE_DEMO") === "true") {
     const bought = await buyPack(userId, coins);
     if (!bought.ok) return bought;
     return { ok: true, mode: "demo", wallet: bought.wallet };
@@ -93,11 +84,7 @@ export async function startCoinCheckout(
     values (${orderId}, ${userId}, ${coins}, ${total}, ${"USD"}, 'pending', ${""})
   `;
 
-  // Encode local order + user in the URL hash fragment is useless server-side.
-  // Buyer must use the same email as their Aura account, OR put orderId in
-  // Shopier "note to seller". We also store pending by user+coins for fallback.
-  const url = productUrl;
-  return { ok: true, mode: "shopier", url };
+  return { ok: true, mode: "shopier", url: productUrl };
 }
 
 export async function fulfillShopierOrder(input: {
@@ -150,7 +137,6 @@ export async function fulfillShopierOrder(input: {
   return { ok: true, credited: true };
 }
 
-/** Credit by Shopier product id + buyer email (OSB path). */
 export async function fulfillByProductAndEmail(input: {
   productId: string;
   email: string;
@@ -166,7 +152,6 @@ export async function fulfillByProductAndEmail(input: {
 
   const sql = await getSql();
 
-  // Idempotent: if this Shopier order was already paid, skip
   const existing = await sql<{ id: string; status: string }>`
     select id, status from shopier_orders
     where payment_id = ${input.shopierOrderId}
@@ -184,7 +169,6 @@ export async function fulfillByProductAndEmail(input: {
     return { ok: false, error: `No user for email ${email}`, http: 404 };
   }
 
-  // Prefer a pending local order for this user+pack
   const pending = await sql<OrderRow>`
     select id, user_id, coins, status
     from shopier_orders
@@ -203,7 +187,6 @@ export async function fulfillByProductAndEmail(input: {
     });
   }
 
-  // No pending row: create + credit immediately
   const orderId = `ac${randomBytes(12).toString("hex")}`;
   await sql`
     insert into shopier_orders (id, user_id, coins, amount, currency, status, random_nr, payment_id, paid_at)
