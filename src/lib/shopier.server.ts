@@ -1,13 +1,24 @@
-/** Server-only Shopier HMAC, checkout form, and order fulfillment. */
+/** Server-only Shopier checkout (product links) + OSB fulfillment. */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { getRequest } from "@tanstack/react-start/server";
 import { getSql } from "@/lib/db";
 import { COIN_PACKS, isCoinPack, type WalletState } from "./wallet";
 import { buyPack, creditCoins } from "./wallet.server";
 
-export const SHOPIER_PAY_URL = "https://www.shopier.com/ShowProduct/api_pay4.php";
-export const SHOPIER_CURRENCY_USD = "1";
-export const SHOPIER_PRODUCT_VIRTUAL = "1";
+/** Fixed Shopier product pages for each pack. */
+export const SHOPIER_PRODUCT_URLS: Record<number, string> = {
+  100: "https://www.shopier.com/AuraCompanions/50519564",
+  300: "https://www.shopier.com/AuraCompanions/50519535",
+  1000: "https://www.shopier.com/AuraCompanions/50519515",
+  5000: "https://www.shopier.com/AuraCompanions/50519487",
+};
+
+/** Shopier product IDs → coin amount (must match the products above). */
+export const SHOPIER_PRODUCT_COINS: Record<string, number> = {
+  "50519564": 100,
+  "50519535": 300,
+  "50519515": 1000,
+  "50519487": 5000,
+};
 
 function envVar(name: string): string | null {
   try {
@@ -18,86 +29,25 @@ function envVar(name: string): string | null {
   }
 }
 
-export function shopierApiKey(): string | null {
-  return envVar("SHOPIER_API_KEY");
+export function shopierPat(): string | null {
+  return envVar("SHOPIER_PAT");
 }
 
-export function shopierApiSecret(): string | null {
-  return envVar("SHOPIER_API_SECRET");
+export function shopierOsbUser(): string | null {
+  return envVar("SHOPIER_OSB_USERNAME");
 }
 
-export function shopierWebsiteIndex(): string {
-  return envVar("SHOPIER_WEBSITE_INDEX") || "1";
+export function shopierOsbPassword(): string | null {
+  return envVar("SHOPIER_OSB_PASSWORD");
 }
 
+/** Live when we have product URLs (always) and ideally OSB for auto-credit. */
 export function shopierConfigured(): boolean {
-  return Boolean(shopierApiKey() && shopierApiSecret());
+  return Object.keys(SHOPIER_PRODUCT_URLS).length > 0;
 }
 
-export function signShopierPayment(input: {
-  randomNr: string;
-  orderId: string;
-  total: string;
-  currency: string;
-  secret: string;
-}): string {
-  return createHmac("sha256", input.secret)
-    .update(input.randomNr + input.orderId + input.total + input.currency, "utf8")
-    .digest("base64");
-}
-
-export function verifyShopierCallback(input: {
-  randomNr: string;
-  orderId: string;
-  signature: string;
-  secret: string;
-}): boolean {
-  const expected = createHmac("sha256", input.secret)
-    .update(input.randomNr + input.orderId, "utf8")
-    .digest();
-  let given: Buffer;
-  try {
-    given = Buffer.from(input.signature, "base64");
-  } catch {
-    return false;
-  }
-  if (given.length === 0 || given.length !== expected.length) return false;
-  return timingSafeEqual(given, expected);
-}
-
-function publicOrigin(): string {
-  const request = getRequest();
-  if (!request) return "";
-  const url = new URL(request.url);
-  const proto = (
-    request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "")
-  )
-    .split(",")[0]!
-    .trim();
-  const host = (
-    request.headers.get("x-forwarded-host") ||
-    request.headers.get("host") ||
-    url.host
-  )
-    .split(",")[0]!
-    .trim();
-  return `${proto}://${host}`;
-}
-
-function numericId(userId: string): string {
-  let n = 0;
-  for (let i = 0; i < userId.length; i += 1) {
-    n = (n * 31 + userId.charCodeAt(i)) >>> 0;
-  }
-  return String(100000000 + (n % 900000000));
-}
-
-function splitName(fullName: string): { first: string; last: string } {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  return {
-    first: (parts[0] || "Aura").slice(0, 40),
-    last: (parts.slice(1).join(" ") || "Buyer").slice(0, 40),
-  };
+export function shopierOsbConfigured(): boolean {
+  return Boolean(shopierOsbUser() && shopierOsbPassword());
 }
 
 type OrderRow = {
@@ -112,78 +62,42 @@ export async function startCoinCheckout(
   coins: number,
 ): Promise<
   | { ok: true; mode: "demo"; wallet: WalletState }
-  | { ok: true; mode: "shopier"; action: string; fields: Record<string, string> }
+  | { ok: true; mode: "shopier"; url: string }
   | { ok: false; error: string }
 > {
   if (!isCoinPack(coins)) return { ok: false, error: "Unknown pack." };
   const pack = COIN_PACKS.find((item) => item.coins === coins);
   if (!pack) return { ok: false, error: "Unknown pack." };
 
-  if (!shopierConfigured()) {
+  const productUrl = SHOPIER_PRODUCT_URLS[coins];
+  if (!productUrl) {
+    // No Shopier product mapped → trial credit
     const bought = await buyPack(userId, coins);
     if (!bought.ok) return bought;
     return { ok: true, mode: "demo", wallet: bought.wallet };
   }
 
-  const key = shopierApiKey()!;
-  const secret = shopierApiSecret()!;
+  // Force demo if SHOPIER_FORCE_DEMO=true
+  if (envVar("SHOPIER_FORCE_DEMO") === "true") {
+    const bought = await buyPack(userId, coins);
+    if (!bought.ok) return bought;
+    return { ok: true, mode: "demo", wallet: bought.wallet };
+  }
+
   const orderId = `ac${randomBytes(12).toString("hex")}`;
-  const randomNr = String(100000 + Math.floor(Math.random() * 900000));
-  const total = pack.usd.toFixed(2);
-  const currency = SHOPIER_CURRENCY_USD;
-  const signature = signShopierPayment({
-    randomNr,
-    orderId,
-    total,
-    currency,
-    secret,
-  });
+  const total = String(pack.usd);
 
   const sql = await getSql();
   await sql`
     insert into shopier_orders (id, user_id, coins, amount, currency, status, random_nr)
-    values (${orderId}, ${userId}, ${coins}, ${total}, ${currency}, 'pending', ${randomNr})
+    values (${orderId}, ${userId}, ${coins}, ${total}, ${"USD"}, 'pending', ${""})
   `;
 
-  const buyer = await sql<{ name: string; email: string }>`
-    select name, email from "user" where id = ${userId} limit 1
-  `;
-  const { first, last } = splitName(buyer[0]?.name || "Aura");
-  const email = (buyer[0]?.email || "buyer@aura-3d.app").slice(0, 80);
-  const origin = publicOrigin();
-
-  const fields: Record<string, string> = {
-    API_key: key,
-    website_index: shopierWebsiteIndex(),
-    platform_order_id: orderId,
-    product_name: `${coins} Aura-coin`,
-    product_type: SHOPIER_PRODUCT_VIRTUAL,
-    buyer_name: first,
-    buyer_surname: last,
-    buyer_email: email,
-    buyer_account_age: "0",
-    buyer_id_nr: numericId(userId),
-    buyer_phone: "5555555555",
-    billing_address: "Digital",
-    billing_city: "Istanbul",
-    billing_country: "TR",
-    billing_postcode: "34000",
-    shipping_address: "Digital",
-    shipping_city: "Istanbul",
-    shipping_country: "TR",
-    shipping_postcode: "34000",
-    total_order_value: total,
-    currency,
-    platform: "0",
-    is_in_frame: "0",
-    current_language: "0",
-    modul_version: "1.0.4",
-    random_nr: randomNr,
-    signature,
-    callback: origin ? `${origin}/api/shopier-callback` : "/api/shopier-callback",
-  };
-
-  return { ok: true, mode: "shopier", action: SHOPIER_PAY_URL, fields };
+  // Encode local order + user in the URL hash fragment is useless server-side.
+  // Buyer must use the same email as their Aura account, OR put orderId in
+  // Shopier "note to seller". We also store pending by user+coins for fallback.
+  const url = productUrl;
+  return { ok: true, mode: "shopier", url };
 }
 
 export async function fulfillShopierOrder(input: {
@@ -234,4 +148,84 @@ export async function fulfillShopierOrder(input: {
 
   await creditCoins(won.user_id, won.coins);
   return { ok: true, credited: true };
+}
+
+/** Credit by Shopier product id + buyer email (OSB path). */
+export async function fulfillByProductAndEmail(input: {
+  productId: string;
+  email: string;
+  shopierOrderId: string;
+}): Promise<{ ok: true; credited: boolean } | { ok: false; error: string; http: number }> {
+  const coins = SHOPIER_PRODUCT_COINS[String(input.productId)];
+  if (!coins) {
+    return { ok: false, error: `Unknown product ${input.productId}`, http: 400 };
+  }
+
+  const email = input.email.trim().toLowerCase();
+  if (!email) return { ok: false, error: "Missing email", http: 400 };
+
+  const sql = await getSql();
+
+  // Idempotent: if this Shopier order was already paid, skip
+  const existing = await sql<{ id: string; status: string }>`
+    select id, status from shopier_orders
+    where payment_id = ${input.shopierOrderId}
+    limit 1
+  `;
+  if (existing[0]?.status === "paid") {
+    return { ok: true, credited: false };
+  }
+
+  const users = await sql<{ id: string }>`
+    select id from "user" where lower(email) = ${email} limit 1
+  `;
+  const userId = users[0]?.id;
+  if (!userId) {
+    return { ok: false, error: `No user for email ${email}`, http: 404 };
+  }
+
+  // Prefer a pending local order for this user+pack
+  const pending = await sql<OrderRow>`
+    select id, user_id, coins, status
+    from shopier_orders
+    where user_id = ${userId}
+      and coins = ${coins}
+      and status = 'pending'
+    order by id desc
+    limit 1
+  `;
+
+  if (pending[0]) {
+    return fulfillShopierOrder({
+      platformOrderId: pending[0].id,
+      status: "success",
+      paymentId: input.shopierOrderId,
+    });
+  }
+
+  // No pending row: create + credit immediately
+  const orderId = `ac${randomBytes(12).toString("hex")}`;
+  await sql`
+    insert into shopier_orders (id, user_id, coins, amount, currency, status, random_nr, payment_id, paid_at)
+    values (${orderId}, ${userId}, ${coins}, ${"0"}, ${"USD"}, 'paid', ${""}, ${input.shopierOrderId}, now())
+  `;
+  await creditCoins(userId, coins);
+  return { ok: true, credited: true };
+}
+
+export function verifyOsbHash(resB64: string, hashHex: string): boolean {
+  const user = shopierOsbUser();
+  const pass = shopierOsbPassword();
+  if (!user || !pass) return false;
+  const expected = createHmac("sha256", pass)
+    .update(resB64 + user)
+    .digest("hex");
+  try {
+    const a = Buffer.from(expected, "utf8");
+    const b = Buffer.from(hashHex, "utf8");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
