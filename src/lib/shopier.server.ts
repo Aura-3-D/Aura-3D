@@ -6,18 +6,17 @@ import { buyPack, creditCoins } from "./wallet.server";
 
 /** Fixed Shopier product pages for each pack. */
 export const SHOPIER_PRODUCT_URLS: Record<number, string> = {
-  100: "https://www.shopier.com/AuraCompanions/50519564",
-  300: "https://www.shopier.com/AuraCompanions/50519535",
-  1000: "https://www.shopier.com/AuraCompanions/50519515",
-  5000: "https://www.shopier.com/AuraCompanions/50519487",
+  100: "https://www.shopier.com/AuraCompanions/50519487",
+  300: "https://www.shopier.com/AuraCompanions/50519515",
+  1000: "https://www.shopier.com/AuraCompanions/50519535",
+  5000: "https://www.shopier.com/AuraCompanions/50519564",
 };
 
-/** Shopier product IDs → coin amount (must match the products above). */
 export const SHOPIER_PRODUCT_COINS: Record<string, number> = {
-  "50519564": 100,
-  "50519535": 300,
-  "50519515": 1000,
-  "50519487": 5000,
+  "50519487": 100,
+  "50519515": 300,
+  "50519535": 1000,
+  "50519564": 5000,
 };
 
 function envVar(name: string): string | null {
